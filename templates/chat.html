@@ -1,77 +1,520 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Chatbot</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <!-- Add highlight.js for syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/html.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/bash.min.js"></script>
+    <!-- Add Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#000000">
+    <link rel="icon" href="/favicon.ico">
+    <meta name="theme-color" content="#10b981">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'ui-sans-serif', 'system-ui'],
+                    },
+                    colors: {
+                        primary: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            200: '#99f6e4',
+                            300: '#5eead4',
+                            400: '#2dd4bf',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                            800: '#065f46',
+                            900: '#064e3b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-    <title>QuickChat</title>
+        .scrollable {
+            max-height: calc(100vh - 160px);
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+        
+        /* Hide scrollbar for Chrome, Safari and Opera */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        
+        /* Hide scrollbar for IE, Edge and Firefox */
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+
+        /* Custom scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f3f4f6;
+            border-radius: 10px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 10px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+
+        /* Markdown content styling */
+        .markdown-content {
+            line-height: 1.7;
+        }
+        
+        .markdown-content p {
+            margin-bottom: 1rem;
+        }
+        
+        .markdown-content h1, .markdown-content h2, .markdown-content h3, 
+        .markdown-content h4, .markdown-content h5, .markdown-content h6 {
+            font-weight: 600;
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .markdown-content h1 { font-size: 1.5rem; }
+        .markdown-content h2 { font-size: 1.3rem; }
+        .markdown-content h3 { font-size: 1.2rem; }
+        
+        .markdown-content ul, .markdown-content ol {
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .markdown-content ul { list-style-type: disc; }
+        .markdown-content ol { list-style-type: decimal; }
+        
+        .markdown-content pre {
+            margin: 1rem 0;
+            border-radius: 0.5rem;
+            background-color: #1e293b;
+            overflow-x: auto;
+        }
+        
+        .markdown-content code:not(pre code) {
+            background-color: #f3f4f6;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        
+        .dark .markdown-content code:not(pre code) {
+            background-color: #374151;
+            color: #e5e7eb;
+        }
+        
+        .markdown-content a {
+            color: #2563eb;
+            text-decoration: underline;
+        }
+        
+        .dark .markdown-content a {
+            color: #60a5fa;
+        }
+        
+        .markdown-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        
+        .markdown-content th, .markdown-content td {
+            border: 1px solid #e5e7eb;
+            padding: 0.5rem;
+        }
+        
+        .dark .markdown-content th, .dark .markdown-content td {
+            border-color: #4b5563;
+        }
+        
+        .markdown-content th {
+            background-color: #f9fafb;
+            font-weight: 600;
+        }
+        
+        .dark .markdown-content th {
+            background-color: #374151;
+        }
+        
+        /* Animation for sending messages */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+        
+        /* Custom typing indicator */
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+        }
+        
+        .typing-dot {
+            height: 8px;
+            width: 8px;
+            border-radius: 50%;
+            background-color: #9ca3af;
+            margin: 0 2px;
+            animation: typingAnimation 1.3s infinite;
+        }
+        
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        
+        @keyframes typingAnimation {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0); }
+        }
+        
+        /* Dark mode transition */
+        .transition-colors {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+    </style>
 </head>
-<body>
-<div class="flex flex-col h-screen antialiased text-gray-800">
-    <div class="flex items-center justify-center h-12 bg-indigo-500 text-white">
-        <h1 class="text-2xl font-bold">QuickChat</h1>
-    </div>
-    <div class="flex flex-col flex-grow p-4">
-        <div class="flex-grow overflow-auto p-4 bg-gray-100 rounded-lg" id="chat-container">
-            <!-- Messages will appear here -->
+
+<body class="bg-gray-100 dark:bg-gray-900 transition-colors font-sans">
+    <div class="container mx-auto p-2 sm:p-4 min-h-screen">
+        <div class="max-w-2xl mx-auto bg-white dark:bg-gray-800 shadow-lg rounded-lg flex flex-col h-screen border border-gray-200 dark:border-gray-700">
+            <!-- Header -->
+            <div class="flex-none bg-primary-600 dark:bg-primary-700 p-4 rounded-t-lg flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-white dark:bg-gray-200 rounded-full flex items-center justify-center shadow-md">
+                        <i class="fas fa-robot text-primary-600 text-lg"></i>
+                    </div>
+                    <h1 class="text-xl font-bold text-white">Gemini Chatbot</h1>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <button id="clear-chat" class="text-white hover:text-gray-200 transition-colors" title="Clear chat">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                    <button id="theme-toggle" class="text-white hover:text-gray-200 transition-colors" title="Toggle dark mode">
+                        <i class="fas fa-moon dark:hidden"></i>
+                        <i class="fas fa-sun hidden dark:block"></i>
+                    </button>
+                    <span class="text-white text-xs px-2 py-1 bg-primary-700 dark:bg-primary-800 rounded-full">v1.1</span>
+                </div>
+            </div>
+            
+            <!-- Chat Container -->
+            <div class="flex-grow p-4 scrollable custom-scrollbar" id="chat-container">
+                {% if not chat_history %}
+                <div class="text-center text-gray-500 dark:text-gray-400 py-12">
+                    <div class="mb-4">
+                        <i class="fas fa-comments text-4xl text-primary-500 dark:text-primary-400"></i>
+                    </div>
+                    <p class="text-lg font-medium mb-2">Welcome to Gemini AI Chatbot</p>
+                    <p class="text-sm">Ask me anything! I'm powered by Google's Gemini AI.</p>
+                    
+                    <div class="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md mx-auto">
+                        <button class="suggestion-btn bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 p-3 rounded-lg text-left text-sm transition-colors">
+                            <div class="font-medium mb-1">Tell me about Gemini AI</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Learn about the technology</div>
+                        </button>
+                        <button class="suggestion-btn bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 p-3 rounded-lg text-left text-sm transition-colors">
+                            <div class="font-medium mb-1">Write code for a todo app</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Get programming help</div>
+                        </button>
+                        <button class="suggestion-btn bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 p-3 rounded-lg text-left text-sm transition-colors">
+                            <div class="font-medium mb-1">Explain quantum computing</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">For a simple understanding</div>
+                        </button>
+                        <button class="suggestion-btn bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 p-3 rounded-lg text-left text-sm transition-colors">
+                            <div class="font-medium mb-1">Creative writing prompts</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">For inspiration</div>
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="space-y-6" id="chat-messages">
+                    {% for chat in chat_history %}
+                    <div class="chat-entry">
+                        <!-- User message -->
+                        <div class="flex justify-end mb-3">
+                            <div class="flex flex-col items-end max-w-[85%] sm:max-w-[75%]">
+                                <div class="flex items-center mb-1 space-x-2">
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">{{ chat.timestamp }}</span>
+                                    <div class="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-user text-xs text-white"></i>
+                                    </div>
+                                </div>
+                                <div class="question bg-blue-500 text-white p-3 rounded-lg shadow-sm">
+                                    <p>{{ chat.question }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Bot response -->
+                        <div class="flex justify-start mt-3">
+                            <div class="flex flex-col items-start max-w-[85%] sm:max-w-[75%]">
+                                <div class="flex items-center mb-1 space-x-2">
+                                    <div class="w-6 h-6 bg-primary-500 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-robot text-xs text-white"></i>
+                                    </div>
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">{{ chat.timestamp }}</span>
+                                </div>
+                                <div class="response bg-gray-200 dark:bg-gray-700 p-4 rounded-lg shadow-sm markdown-content dark:text-white">
+                                    {{ chat.response | safe }}
+                                </div>
+                                <div class="flex mt-2 space-x-2">
+                                    <button class="copy-btn text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 flex items-center">
+                                        <i class="far fa-copy mr-1"></i> Copy
+                                    </button>
+                                    <button class="feedback-btn text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 flex items-center">
+                                        <i class="far fa-thumbs-up mr-1"></i> Helpful
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Typing indicator (hidden by default) -->
+                <div id="typing-indicator" class="flex mt-4 mb-2 ml-12 hidden">
+                    <div class="flex flex-col items-start">
+                        <div class="flex items-center mb-1 space-x-2">
+                            <div class="w-6 h-6 bg-primary-500 rounded-full flex items-center justify-center">
+                                <i class="fas fa-robot text-xs text-white"></i>
+                            </div>
+                            <span class="text-xs text-gray-500 dark:text-gray-400">Gemini</span>
+                        </div>
+                        <div class="bg-gray-200 dark:bg-gray-700 p-3 rounded-lg shadow-sm">
+                            <div class="typing-indicator">
+                                <div class="typing-dot"></div>
+                                <div class="typing-dot"></div>
+                                <div class="typing-dot"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Input Section -->
+            <div class="flex-none bg-gray-100 dark:bg-gray-800 p-4 rounded-b-lg border-t border-gray-200 dark:border-gray-700">
+                <form method="POST" action="/" class="flex items-center" id="chat-form">
+                    <div class="relative flex-grow">
+                        <textarea id="new_string" name="new_string" rows="1"
+                               class="w-full p-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 resize-none bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
+                               placeholder="Type your message..." required autocomplete="off"></textarea>
+                        <button type="button" class="absolute right-2 top-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                            <i class="fas fa-microphone"></i>
+                        </button>
+                    </div>
+                    <button type="submit" 
+                            class="bg-primary-500 hover:bg-primary-600 dark:bg-primary-600 dark:hover:bg-primary-700 text-white px-4 py-3 rounded-r-lg transition duration-200 flex items-center justify-center">
+                        <i class="fas fa-paper-plane"></i>
+                        <span class="ml-2 hidden sm:inline">Send</span>
+                    </button>
+                </form>
+                <div class="flex justify-between items-center mt-2">
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        <i class="fas fa-bolt text-yellow-500"></i> Gemini 1.5 Flash model
+                    </p>
+                    <button id="settings-btn" class="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
+                        <i class="fas fa-cog"></i> Settings
+                    </button>
+                </div>
+            </div>
         </div>
-        <div class="flex items-center mt-4">
-            <input type="text" id="chat-input" class="flex-grow p-2 border rounded" placeholder="Type your message here...">
-            <button id="send-button" class="ml-2 p-2 bg-indigo-500 text-white rounded">Send</button>
-            <button id="leave-button" class="ml-2 p-2 bg-red-500 text-white rounded">Leave</button>
-        </div>
     </div>
-</div>
 
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const socket = io();
-
-        const username = "{{ username }}"; // This will be provided by the Flask template
-        const chatContainer = document.getElementById('chat-container');
-        const chatInput = document.getElementById('chat-input');
-        const sendButton = document.getElementById('send-button');
-        const leaveButton = document.getElementById('leave-button');
-
-        socket.emit('join', { username: username, room: 'main' });
-
-        sendButton.addEventListener('click', () => {
-            const message = chatInput.value;
-            if (message) {
-                socket.emit('message', { username: username, msg: message, room: 'main' });
-                chatInput.value = '';
+    <script>
+        // Auto-resize textarea
+        const textarea = document.getElementById('new_string');
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+            
+            // Cap the height
+            if (this.scrollHeight > 150) {
+                this.style.height = '150px';
+                this.style.overflowY = 'auto';
+            } else {
+                this.style.overflowY = 'hidden';
             }
         });
-
-        leaveButton.addEventListener('click', () => {
-            socket.emit('leave', { username: username, room: 'main' });
-            window.location.href = '/';
-        });
-
-        socket.on('message', (data) => {
-            const messageElement = document.createElement('div');
-            messageElement.classList.add('p-2', 'mb-2', 'rounded', data.username === username ? 'bg-blue-200' : 'bg-gray-200');
-            messageElement.innerText = `${data.username}: ${data.msg}`;
-            chatContainer.appendChild(messageElement);
+        
+        // Auto-scroll to bottom of chat
+        function scrollToBottom() {
+            const chatContainer = document.getElementById('chat-container');
             chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        // Theme toggle
+        const themeToggle = document.getElementById('theme-toggle');
+        themeToggle.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
         });
-    });
-</script>
-<script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/service-worker.js')
-          .then(registration => {
-            console.log('Service Worker registered with scope:', registration.scope);
-          }).catch(err => {
-            console.log('Service Worker registration failed:', err);
-          });
-      });
-    }
-  </script>
+        
+        // Check for saved theme preference
+        if (localStorage.theme === 'dark' || 
+           (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+        
+        // Clear chat button
+        document.getElementById('clear-chat').addEventListener('click', function() {
+            if (confirm('Are you sure you want to clear the chat history?')) {
+                // Send request to clear chat (would need a backend endpoint)
+                // For now, just reload the page
+                window.location.reload();
+            }
+        });
+        
+        // Suggestion buttons
+        document.querySelectorAll('.suggestion-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const suggestion = this.querySelector('.font-medium').textContent;
+                document.getElementById('new_string').value = suggestion;
+                document.getElementById('chat-form').dispatchEvent(new Event('submit'));
+            });
+        });
+        
+        // Copy buttons
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.copy-btn')) {
+                const responseText = e.target.closest('.chat-entry').querySelector('.response').textContent.trim();
+                navigator.clipboard.writeText(responseText)
+                    .then(() => {
+                        const copyBtn = e.target.closest('.copy-btn');
+                        copyBtn.innerHTML = '<i class="fas fa-check mr-1"></i> Copied';
+                        setTimeout(() => {
+                            copyBtn.innerHTML = '<i class="far fa-copy mr-1"></i> Copy';
+                        }, 2000);
+                    });
+            }
+        });
+        
+        // Feedback buttons
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.feedback-btn')) {
+                const feedbackBtn = e.target.closest('.feedback-btn');
+                feedbackBtn.innerHTML = '<i class="fas fa-thumbs-up mr-1"></i> Thanks!';
+                feedbackBtn.classList.add('text-primary-500');
+                feedbackBtn.classList.remove('text-gray-500', 'hover:text-gray-700');
+                // Could send feedback to backend here
+            }
+        });
+        
+        // Form submission with typing indicator
+        document.getElementById('chat-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const message = textarea.value.trim();
+            if (!message) return;
+            
+            // Add user message to chat
+            const chatMessages = document.getElementById('chat-messages');
+            const timestamp = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            const userMessageHTML = `
+                <div class="chat-entry animate-fade-in">
+                    <div class="flex justify-end mb-3">
+                        <div class="flex flex-col items-end max-w-[85%] sm:max-w-[75%]">
+                            <div class="flex items-center mb-1 space-x-2">
+                                <span class="text-xs text-gray-500 dark:text-gray-400">${timestamp}</span>
+                                <div class="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-user text-xs text-white"></i>
+                                </div>
+                            </div>
+                            <div class="question bg-blue-500 text-white p-3 rounded-lg shadow-sm">
+                                <p>${message}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Clear welcome screen if present
+            if (document.querySelector('.text-center.text-gray-500')) {
+                chatMessages.innerHTML = '';
+            }
+            
+            chatMessages.insertAdjacentHTML('beforeend', userMessageHTML);
+            textarea.value = '';
+            textarea.style.height = 'auto';
+            scrollToBottom();
+            
+            // Show typing indicator
+            document.getElementById('typing-indicator').classList.remove('hidden');
+            scrollToBottom();
+            
+            // Submit the form normally
+            this.submit();
+        });
+        
+        // Initialize on page load
+        window.onload = function() {
+            scrollToBottom();
+            // Apply syntax highlighting
+            document.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+            
+            // Enter key submits form, Shift+Enter adds new line
+            textarea.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    document.getElementById('chat-form').dispatchEvent(new Event('submit'));
+                }
+            });
+        };
+        
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful');
+                    }).catch(err => {
+                        console.log('ServiceWorker registration failed:', err);
+                    });
+            });
+        }
+    </script>
 </body>
+
 </html>

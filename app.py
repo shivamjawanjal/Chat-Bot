@@ -1,98 +1,88 @@
 from flask import Flask, render_template, request, send_from_directory
-from flask_socketio import SocketIO, join_room, leave_room, send
-from config import get_database
+import google.generativeai as genai
+from datetime import datetime
+import os
+import markdown
+from bs4 import BeautifulSoup
+
+# Configure Gemini AI
+genai.configure(api_key='AIzaSyDgyy6G-qmsH8bO6UWHzptRoQHX8YLaG8U')
+model = genai.GenerativeModel(model_name="gemini-1.5-flash")
 
 app = Flask(__name__)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
-socketio = SocketIO(app)
+app.secret_key = 'IamGood'
 
-# Database setup
-db = get_database()
-users_collection = db['users']
-chats_collection = db['chats']
+def format_response(text):
+    """Convert markdown to HTML and add syntax highlighting"""
+    html = markdown.markdown(text)
+    
+    # Add Tailwind classes for better formatting
+    soup = BeautifulSoup(html, 'html.parser')
+    
+    # Style code blocks
+    for pre in soup.find_all('pre'):
+        pre['class'] = 'bg-gray-800 text-gray-100 p-4 rounded-md overflow-x-auto'
+    
+    # Style code elements
+    for code in soup.find_all('code'):
+        if not code.parent.name == 'pre':  # Inline code
+            code['class'] = 'bg-gray-200 text-gray-800 px-1 rounded'
+    
+    # Style headers
+    for h in soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']):
+        h['class'] = 'font-bold my-2'
+        if h.name == 'h1':
+            h['class'] += ' text-2xl'
+        elif h.name == 'h2':
+            h['class'] += ' text-xl'
+        elif h.name == 'h3':
+            h['class'] += ' text-lg'
+    
+    # Style lists
+    for ul in soup.find_all('ul'):
+        ul['class'] = 'list-disc pl-5 my-2'
+    for ol in soup.find_all('ol'):
+        ol['class'] = 'list-decimal pl-5 my-2'
+    
+    # Style blockquotes
+    for blockquote in soup.find_all('blockquote'):
+        blockquote['class'] = 'border-l-4 border-gray-400 pl-4 my-2 italic'
+    
+    return str(soup)
 
-@app.route('/')
+# ... [rest of the backend code remains the same until the index route]
+
+@app.route('/', methods=['GET', 'POST'])
 def index():
-    return render_template('index.html')
-
-@app.route('/joinchat', methods=['GET', 'POST'])
-def joinChat():
+    if 'chat_history' not in app.config:
+        app.config['chat_history'] = []
+    
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        user = {'username': username, 'password': password}
-        existingUser = users_collection.find_one(user)
+        question = request.form.get('new_string', '').strip()
+        if question:
+            try:
+                response = model.generate_content(question)
+                response_text = format_response(response.text)
+                timestamp = datetime.now().strftime("%H:%M")
+                app.config['chat_history'].append({
+                    'question': question,
+                    'response': response_text,
+                    'timestamp': timestamp
+                })
+                if len(app.config['chat_history']) > 20:
+                    app.config['chat_history'] = app.config['chat_history'][-20:]
+            except Exception as e:
+                print(f"Error generating response: {e}")
+                app.config['chat_history'].append({
+                    'question': question,
+                    'response': "Sorry, I encountered an error processing your request.",
+                    'timestamp': datetime.now().strftime("%H:%M")
+                })
+    
+    return render_template('chat.html', chat_history=app.config['chat_history'])
 
-        if existingUser and existingUser['password'] == password:
-            return render_template('chat.html', username=username)
-        else:
-            return render_template('index.html', alertMsg='User does not exist with this username or incorrect password')
-
-@app.route('/createuser', methods=['POST'])
-def create_user():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-
-        create_user_in_db(username, password)
-
-        return render_template('chat.html', username=username)
-
-@app.route('/createchat', methods=['POST'])
-def create_chat_route():
-    if request.method == 'POST':
-        chat = request.form['chat']
-        username = request.form['username']
-
-        create_chat(username, chat)
-
-        chatList = get_chat()
-        myChatList = [item for item in chatList if item['username'] == username]
-        strangerChatList = [item for item in chatList if item['username'] != username]
-
-        return render_template('chat.html', username=username, myChatList=myChatList, strangerChatList=strangerChatList)
-
-# Serve manifest.json
-@app.route('/manifest.json')
-def manifest():
-    return send_from_directory('static', 'manifest.json')
-
-# Serve service-worker.js
-@app.route('/service-worker.js')
-def service_worker():
-    return send_from_directory('static', 'service-worker.js')
-
-def create_user_in_db(username, password):
-    user = {'username': username, 'password': password}
-    result = users_collection.insert_one(user)
-    return result.inserted_id
-
-def create_chat(username, chat):
-    chat_data = {'username': username, 'chat': chat}
-    result = chats_collection.insert_one(chat_data)
-    return result.inserted_id
-
-def get_chat():
-    chats = chats_collection.find()
-    return list(chats)
-
-# SocketIO handlers
-@socketio.on('join')
-def handle_join(data):
-    join_room(data['room'])
-    send({'msg': data['username'] + ' has joined the room.'}, room=data['room'])
-
-@socketio.on('leave')
-def handle_leave(data):
-    leave_room(data['room'])
-    send({'msg': data['username'] + ' has left the room.'}, room=data['room'])
-
-@socketio.on('message')
-def handle_message(data):
-    chat_data = {'username': data['username'], 'chat': data['msg']}
-    chats_collection.insert_one(chat_data)
-    send({'username': data['username'], 'msg': data['msg']}, room=data['room'])
+# ... [rest of the file remains the same]
 
 if __name__ == '__main__':
-    port = 8000
-    socketio.run(app, debug=True, host='0.0.0.0', port=port)
+    app.run(debug=True, port=5000)

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Chatbot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" href="/favicon.ico">
+    <meta name="theme-color" content="#4ade80">
+    <style>
+        .scrollable {
+            max-height: 70vh;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+        .chat-entry:last-child {
+            margin-bottom: 1rem;
+        }
+        /* Custom scrollbar */
+        .scrollable::-webkit-scrollbar {
+            width: 8px;
+        }
+        .scrollable::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .scrollable::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 10px;
+        }
+        .scrollable::-webkit-scrollbar-thumb:hover {
+            background: #a1a1a1;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100">
+    <div class="container mx-auto p-4">
+        <div class="max-w-lg mx-auto bg-white shadow-md rounded-lg flex flex-col h-screen">
+            <div class="flex-none bg-green-500 p-4 rounded-t-lg flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-white">Gemini Chatbot</h1>
+                <span class="text-white text-sm">v1.0</span>
+            </div>
+            
+            <div class="flex-grow p-4 scrollable" id="chat-container">
+                {% if not chat_history %}
+                <div class="text-center text-gray-500 py-8">
+                    <p>Ask me anything! I'm powered by Gemini AI.</p>
+                </div>
+                {% endif %}
+                
+                <div class="space-y-4">
+                    {% for chat in chat_history %}
+                    <div class="chat-entry">
+                        <div class="flex justify-end mb-1">
+                            <div class="flex flex-col items-end">
+                                <span class="text-xs text-gray-500 mr-2">{{ chat.timestamp }}</span>
+                                <div class="question bg-blue-500 text-white p-3 rounded-lg shadow-sm max-w-xs lg:max-w-md">
+                                    {{ chat.question }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex justify-start mt-1">
+                            <div class="flex flex-col items-start">
+                                <span class="text-xs text-gray-500 ml-2">{{ chat.timestamp }}</span>
+                                <div class="response bg-gray-200 p-3 rounded-lg shadow-sm max-w-xs lg:max-w-md">
+                                    {{ chat.response | safe }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div class="flex-none bg-gray-100 p-4 rounded-b-lg border-t">
+                <form method="POST" action="/" class="flex items-center" id="chat-form">
+                    <input type="text" id="new_string" name="new_string" 
+                           class="flex-grow p-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                           placeholder="Type your message..." required autocomplete="off">
+                    <button type="submit" 
+                            class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-r-md transition duration-200">
+                        Send
+                    </button>
+                </form>
+                <p class="text-xs text-gray-500 mt-2 text-center">
+                    Gemini 1.5 Flash model - Responses may take a moment
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Auto-scroll to bottom of chat
+        function scrollToBottom() {
+            const chatContainer = document.getElementById('chat-container');
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        // Scroll to bottom when page loads and after form submission
+        window.onload = scrollToBottom;
+        document.getElementById('chat-form').onsubmit = function() {
+            setTimeout(scrollToBottom, 100);
+        };
+        
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful');
+                    }).catch(err => {
+                        console.log('ServiceWorker registration failed:', err);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
